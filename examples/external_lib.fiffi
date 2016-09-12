@@ -1,0 +1,45 @@
+# You can declare functions from the C standard library using `def native`
+# You specify the return type, the function name and the argument types,
+# but no argument names, as those wouldn't serve a purpose.
+def native double sqrt(double)
+
+# The type `char*` is declared using the keyword `string` as I didn't want
+# to bother with general pointer types.
+def native int puts(string)
+
+# You can also declare functions from an external library by specifying its name
+# in parentheses after the `native` keyword.
+def native("external_lib.so") void print(string)
+
+# Since FiffiScript has no built-in arithmetic operators, we use functions
+# defined in an external C library to add and multiply numbers.
+def native("external_lib.so") double add(double, double)
+def native("external_lib.so") double mult(double, double)
+
+# Regular functions simply return the value of the last expression in the
+# function body
+def sq(x) {
+  mult(x,x)
+}
+
+def puts4(s1, s2, s3, s4) {
+  print(s1)
+  print(s2)
+  print(s3)
+  puts(s4)
+}
+
+def info(x) {
+  puts4("The square of ", x, " is ", sq(x))
+  puts4("The square root of ", x, " is ", sqrt(x))
+  puts4("The square root of the square of ", x, " is ", sqrt(sq(x)))
+  puts4("The square root plus the square of ", x, " is ", add(sqrt(x), sq(x)))
+}
+
+# The main function is the one that is invoked when the program is started.
+# It must not take any parameters and its return value is ignored.
+def main() {
+  info(42)
+  info(23.0)
+  info(add(42, 23))
+}

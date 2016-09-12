@@ -1,0 +1,4 @@
+/gen
+*.o
+*.so
+fiffiscript

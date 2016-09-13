@@ -2,6 +2,8 @@
 %defines
 %define api.token.constructor
 %define api.value.type variant
+%define api.token.prefix {T_}
+%define parse.error verbose
 
 %code requires {
 #include <string>
@@ -21,7 +23,6 @@ YY_DECL;
 
 %parse-param { fiffiscript::Program& program }
 
-%define api.token.prefix {T_}
 
 %token  <long long>     INT_LITERAL
 %token  <double>        FLOAT_LITERAL

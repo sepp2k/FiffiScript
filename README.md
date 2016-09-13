@@ -77,7 +77,7 @@ Examples can be found in the examples directory.
 `examples/external_library.fiffi` is the one that contains actual comments, so
 you should look at that.
 
-## Code Organization
+## Code "Organization"
 
 The syntax of the language is implemented in tokenizer.l and parser.yy.
 Its semantics are implemented in fiffiscript.{cc,hh}.

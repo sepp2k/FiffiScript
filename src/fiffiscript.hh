@@ -41,9 +41,10 @@ namespace fiffiscript {
         virtual float to_float() const = 0;
         virtual double to_double() const = 0;
         virtual std::string to_string() const = 0;
+        virtual std::string type_name() const = 0;
         virtual std::shared_ptr<Value> call(const std::vector<std::shared_ptr<Value>>&,
                                             Environment&) {
-            util::error("Tried to call non-function.");
+            util::error("Tried to use value of type ", type_name(), " as a function.");
         }
         virtual ~Value() {}
     };
@@ -74,6 +75,9 @@ namespace fiffiscript {
         virtual std::string to_string() const {
             return std::to_string(value);
         }
+        virtual std::string type_name() const {
+            return "int";
+        }
     };
 
     class FloatValue : public Value {
@@ -102,6 +106,9 @@ namespace fiffiscript {
         virtual std::string to_string() const {
             return std::to_string(value);
         }
+        virtual std::string type_name() const {
+            return "float";
+        }
     };
 
     class StringValue : public Value {
@@ -109,64 +116,71 @@ namespace fiffiscript {
     public:
         StringValue(const std::string& value) : value(value) {}
 
-        [[noreturn]] void not_supported() const {
-            util::error("Automatic conversion from strings to numbers not supported");
+        [[noreturn]] void not_supported(const std::string& type_name) const {
+            util::error("Automatic conversion from strings to ", type_name, " not supported");
         }
 
         virtual short to_short() const {
-            not_supported();
+            not_supported("short");
         }
         virtual int to_int() const {
-            not_supported();
+            not_supported("int");
         }
         virtual long to_long() const {
-            not_supported();
+            not_supported("long");
         }
         virtual long long to_long_long() const {
-            not_supported();
+            not_supported("long long");
         }
         virtual float to_float() const {
-            not_supported();
+            not_supported("float");
         }
         virtual double to_double() const {
-            not_supported();
+            not_supported("double");
         }
         virtual std::string to_string() const {
             return value;
         }
+        virtual std::string type_name() const {
+            return "string";
+        }
     };
 
     class Function : public Value {
-        [[noreturn]] void num_error() const {
-            util::error("Can't use function as number");
+        [[noreturn]] void cast_error(const std::string& type_name) const {
+            util::error("Can't convert function to ", type_name);
         }
     public:
         virtual short to_short() const {
-            num_error();
+            cast_error("short");
         }
 
         virtual int to_int() const {
-            num_error();
+            cast_error("int");
         }
 
         virtual long to_long() const {
-            num_error();
+            cast_error("long");
         }
 
         virtual long long to_long_long() const {
-            num_error();
+            cast_error("long long");
         }
 
         virtual float to_float() const {
-            num_error();
+            cast_error("float");
         }
 
         virtual double to_double() const {
-            num_error();
+            cast_error("double");
         }
 
         virtual std::string to_string() const {
-            util::error("Can't use function as string");
+            cast_error("string");
+        }
+
+        virtual std::string type_name() const {
+            return "function";
         }
     };
 
@@ -246,12 +260,14 @@ namespace fiffiscript {
     };
 
     class RegularFunction : public Function {
+        std::string name;
         std::vector<std::string> parameters;
         std::vector<std::shared_ptr<Expression>> body;
     public:
-        RegularFunction(const std::vector<std::string>& parameters,
+        RegularFunction(const std::string& name,
+                        const std::vector<std::string>& parameters,
                         const std::vector<std::shared_ptr<Expression>>& body)
-            : parameters(parameters), body(body)
+            : name(name), parameters(parameters), body(body)
         {}
 
         virtual std::shared_ptr<Value> call(const std::vector<std::shared_ptr<Value>>&,

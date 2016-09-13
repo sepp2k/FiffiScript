@@ -48,7 +48,7 @@ program:
 
 definition:
     DEF IDENTIFIER LEFT_PAREN param_list RIGHT_PAREN LEFT_BRACE body RIGHT_BRACE {
-        auto f = std::make_shared<fiffiscript::RegularFunction>($4, $7);
+        auto f = std::make_shared<fiffiscript::RegularFunction>($2, $4, $7);
         auto exp = std::make_shared<fiffiscript::Constant>(f);
         program.add_definition($2, exp);
     } |

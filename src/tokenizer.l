@@ -33,7 +33,7 @@
 [a-zA-Z][a-zA-Z_0-9]*  return yy::parser::make_IDENTIFIER(yytext);
 ["][^"]*["] return yy::parser::make_STRING_LITERAL(std::string(yytext + 1, std::strlen(yytext)-2));
 <<EOF>>    return yy::parser::make_EOF();
-.          util::error("Invalid character");
+.          util::error("Invalid character '", yytext, "'");
 
 %%
 

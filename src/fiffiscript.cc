@@ -42,7 +42,7 @@ namespace fiffiscript {
         if(library.size() == 0) library_handle = dlopen(nullptr, RTLD_LAZY);
         else library_handle = dlopen(library.c_str(), RTLD_LAZY);
         if(library_handle == nullptr) {
-            util::error("Error opening library file");
+            util::error("Error opening library ", library);
         }
         function_handle = dlsym(library_handle, name.c_str());
         if(ffi_prep_cif(&cif,
@@ -51,7 +51,7 @@ namespace fiffiscript {
                         return_type,
                         this->argument_types.data()
                        ) != FFI_OK) {
-            util::error("Error while initializing FFI");
+            util::error("Error while initializing FFI for the declaration of ", name);
         }
     }
 
@@ -96,9 +96,17 @@ namespace fiffiscript {
         }
     }
 
+    [[noreturn]] void wrong_number_of_arguments(const std::string& name, int expected, int actual) {
+        util::error("Wrong number of arguments to ", name,
+                    ";  expected: ", expected,
+                    ", but got: ", actual);
+    }
+
     std::shared_ptr<Value> NativeFunction::call(const std::vector<std::shared_ptr<Value>>& arguments,
                                                 Environment&) {
-        if(arguments.size() != argument_types.size()) util::error("Wrong number of arguments");
+        if(arguments.size() != argument_types.size()) {
+            wrong_number_of_arguments(name, argument_types.size(), arguments.size());
+        }
         void** cargs = new void*[arguments.size()];
         for(size_t i = 0; i < arguments.size(); i++) {
             if(argument_types[i] == short_type) {
@@ -120,7 +128,7 @@ namespace fiffiscript {
                 std::strcpy(*cstr, str.c_str());
                 cargs[i] = cstr;
             } else {
-                util::error("Unsupported argument type in native function declaration.");
+                util::error("Unsupported argument type in declaration of native function, ", name);
             }
         }
 
@@ -145,7 +153,7 @@ namespace fiffiscript {
         } else if(return_type == string_type) {
             result = call_function<char*>(&cif, function_handle, cargs);
         } else {
-            util::error("Unsupported argument type in native function declaration.");
+            util::error("Unsupported return type in declaration of native function, ", name);
         }
 
         for(size_t i = 0; i < arguments.size(); i++) {
@@ -179,7 +187,7 @@ namespace fiffiscript {
         if(environment[name]) {
             return environment[name];
         } else {
-            util::error("Undefined variable");
+            util::error("Undefined function or variable: ", name);
         }
     }
 
@@ -195,7 +203,7 @@ namespace fiffiscript {
     std::shared_ptr<Value> RegularFunction::call(const std::vector<std::shared_ptr<Value>>& arguments,
                                                  Environment& environment) {
         if(arguments.size() != parameters.size()) {
-            util::error("Wrong number of arguments in function call.");
+            wrong_number_of_arguments(name, parameters.size(), arguments.size());
         }
         environment.push_scope();
         for(size_t i = 0; i < arguments.size(); i++) {
@@ -226,7 +234,7 @@ namespace fiffiscript {
             std::vector<std::shared_ptr<fiffiscript::Value>> no_arguments;
             environment["main"]->call(no_arguments, environment);
         } else {
-            util::error("Function not found");
+            util::error("Function main() not found");
         }
     }
 }

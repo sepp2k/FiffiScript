@@ -5,6 +5,8 @@
 #include <string>
 #include <cstdlib>
 
+#include "location.hh"
+
 // This is a class with only static members rather than a namespace, so I can
 // define private helper functions
 class util {
@@ -19,13 +21,25 @@ class util {
     static void print() {
     }
 
-public:
     template<typename ...T>
-    [[noreturn]] static void error(const T&... args)
+    [[noreturn]] static void println_and_exit(const T&... args)
     {
         print(args...);
         std::cerr << std::endl;
         std::exit(1);
+    }
+
+public:
+    template<typename ...T>
+    [[noreturn]] static void error(const yy::location& loc, const T&... args)
+    {
+        println_and_exit(loc, ": ", args...);
+    }
+
+    template<typename ...T>
+    [[noreturn]] static void error(const T&... args)
+    {
+        println_and_exit(args...);
     }
 };
 #endif

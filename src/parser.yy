@@ -1,5 +1,6 @@
 %skeleton "lalr1.cc"
 %defines
+%locations
 %define api.token.constructor
 %define api.value.type variant
 %define api.token.prefix {T_}
@@ -11,6 +12,7 @@
 #include <map>
 #include <memory>
 
+#include "location.hh"
 #include "fiffiscript.hh"
 #include "util.hh"
 
@@ -22,7 +24,6 @@ YY_DECL;
 }
 
 %parse-param { fiffiscript::Program& program }
-
 
 %token  <long long>     INT_LITERAL
 %token  <double>        FLOAT_LITERAL
@@ -159,7 +160,7 @@ expression_list1:
 
 %%
 
-void yy::parser::error (const std::string& message)
+void yy::parser::error (const location& loc, const std::string& message)
 {
-    util::error(message);
+    util::error(loc, message);
 }

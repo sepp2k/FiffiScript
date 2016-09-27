@@ -31,19 +31,39 @@ namespace fiffiscript {
         std::shared_ptr<Value>& operator[](const std::string& name);
     };
 
+    class AstNode {
+    protected:
+        yy::location loc;
+
+        AstNode(const yy::location& loc) : loc(loc) {}
+
+        template<typename ...T>
+        [[noreturn]] void error(const T&... args)
+        {
+            util::error(loc, args...);
+        }
+
+    public:
+        virtual const yy::location& location() {
+            return loc;
+        }
+    };
+
 
     class Value {
     public:
-        virtual short to_short() const = 0;
-        virtual int to_int() const = 0;
-        virtual long to_long() const = 0;
-        virtual long long to_long_long() const = 0;
-        virtual float to_float() const = 0;
-        virtual double to_double() const = 0;
-        virtual std::string to_string() const = 0;
-        virtual std::shared_ptr<Value> call(const std::vector<std::shared_ptr<Value>>&,
+        virtual short to_short(const yy::location&) const = 0;
+        virtual int to_int(const yy::location&) const = 0;
+        virtual long to_long(const yy::location&) const = 0;
+        virtual long long to_long_long(const yy::location&) const = 0;
+        virtual float to_float(const yy::location&) const = 0;
+        virtual double to_double(const yy::location&) const = 0;
+        virtual std::string to_string(const yy::location&) const = 0;
+        virtual std::string type_name() const = 0;
+        virtual std::shared_ptr<Value> call(const yy::location& loc,
+                                            const std::vector<std::shared_ptr<Value>>&,
                                             Environment&) {
-            util::error("Tried to call non-function.");
+            util::error(loc, "Tried to use value of type ", type_name(), " as a function.");
         }
         virtual ~Value() {}
     };
@@ -53,26 +73,29 @@ namespace fiffiscript {
     public:
         IntValue(long long value) : value(value) {}
 
-        virtual short to_short() const {
+        virtual short to_short(const yy::location&) const {
             return value;
         }
-        virtual int to_int() const {
+        virtual int to_int(const yy::location&) const {
             return value;
         }
-        virtual long to_long() const {
+        virtual long to_long(const yy::location&) const {
             return value;
         }
-        virtual long long to_long_long() const {
+        virtual long long to_long_long(const yy::location&) const {
             return value;
         }
-        virtual float to_float() const {
+        virtual float to_float(const yy::location&) const {
             return value;
         }
-        virtual double to_double() const {
+        virtual double to_double(const yy::location&) const {
             return value;
         }
-        virtual std::string to_string() const {
+        virtual std::string to_string(const yy::location&) const {
             return std::to_string(value);
+        }
+        virtual std::string type_name() const {
+            return "int";
         }
     };
 
@@ -81,26 +104,29 @@ namespace fiffiscript {
     public:
         FloatValue(double value) : value(value) {}
 
-        virtual short to_short() const {
+        virtual short to_short(const yy::location&) const {
             return value;
         }
-        virtual int to_int() const {
+        virtual int to_int(const yy::location&) const {
             return value;
         }
-        virtual long to_long() const {
+        virtual long to_long(const yy::location&) const {
             return value;
         }
-        virtual long long to_long_long() const {
+        virtual long long to_long_long(const yy::location&) const {
             return value;
         }
-        virtual float to_float() const {
+        virtual float to_float(const yy::location&) const {
             return value;
         }
-        virtual double to_double() const {
+        virtual double to_double(const yy::location&) const {
             return value;
         }
-        virtual std::string to_string() const {
+        virtual std::string to_string(const yy::location&) const {
             return std::to_string(value);
+        }
+        virtual std::string type_name() const {
+            return "float";
         }
     };
 
@@ -109,64 +135,75 @@ namespace fiffiscript {
     public:
         StringValue(const std::string& value) : value(value) {}
 
-        [[noreturn]] void not_supported() const {
-            util::error("Automatic conversion from strings to numbers not supported");
+        [[noreturn]] void not_supported(const yy::location& loc, const std::string& type_name) const {
+            util::error(loc, "Automatic conversion from strings to ", type_name, " not supported");
         }
 
-        virtual short to_short() const {
-            not_supported();
+        virtual short to_short(const yy::location& loc) const {
+            not_supported(loc, "short");
         }
-        virtual int to_int() const {
-            not_supported();
+        virtual int to_int(const yy::location& loc) const {
+            not_supported(loc, "int");
         }
-        virtual long to_long() const {
-            not_supported();
+        virtual long to_long(const yy::location& loc) const {
+            not_supported(loc, "long");
         }
-        virtual long long to_long_long() const {
-            not_supported();
+        virtual long long to_long_long(const yy::location& loc) const {
+            not_supported(loc, "long long");
         }
-        virtual float to_float() const {
-            not_supported();
+        virtual float to_float(const yy::location& loc) const {
+            not_supported(loc, "float");
         }
-        virtual double to_double() const {
-            not_supported();
+        virtual double to_double(const yy::location& loc) const {
+            not_supported(loc, "double");
         }
-        virtual std::string to_string() const {
+        virtual std::string to_string(const yy::location&) const {
             return value;
+        }
+        virtual std::string type_name() const {
+            return "string";
         }
     };
 
-    class Function : public Value {
-        [[noreturn]] void num_error() const {
-            util::error("Can't use function as number");
+    class Function : public Value, public AstNode {
+        [[noreturn]] void cast_error(const yy::location& loc, const std::string& type_name) const {
+            util::error(loc, "Can't convert function to ", type_name);
         }
+
+    protected:
+        Function(const yy::location& loc) : AstNode(loc) {}
+
     public:
-        virtual short to_short() const {
-            num_error();
+        virtual short to_short(const yy::location& loc) const {
+            cast_error(loc, "short");
         }
 
-        virtual int to_int() const {
-            num_error();
+        virtual int to_int(const yy::location& loc) const {
+            cast_error(loc, "int");
         }
 
-        virtual long to_long() const {
-            num_error();
+        virtual long to_long(const yy::location& loc) const {
+            cast_error(loc, "long");
         }
 
-        virtual long long to_long_long() const {
-            num_error();
+        virtual long long to_long_long(const yy::location& loc) const {
+            cast_error(loc, "long long");
         }
 
-        virtual float to_float() const {
-            num_error();
+        virtual float to_float(const yy::location& loc) const {
+            cast_error(loc, "float");
         }
 
-        virtual double to_double() const {
-            num_error();
+        virtual double to_double(const yy::location& loc) const {
+            cast_error(loc, "double");
         }
 
-        virtual std::string to_string() const {
-            util::error("Can't use function as string");
+        virtual std::string to_string(const yy::location& loc) const {
+            cast_error(loc, "string");
+        }
+
+        virtual std::string type_name() const {
+            return "function";
         }
     };
 
@@ -198,18 +235,23 @@ namespace fiffiscript {
         NativeFunction(const NativeFunction&) = delete;
         void operator=(const NativeFunction&) = delete;
 
-        NativeFunction(const std::string& library,
+        NativeFunction(const yy::location& loc,
+                       const std::string& library,
                        const std::string& name,
                        Type return_type,
                        std::vector<Type>& argument_types);
 
-        virtual std::shared_ptr<Value> call(const std::vector<std::shared_ptr<Value>>&,
+        virtual std::shared_ptr<Value> call(const yy::location&,
+                                            const std::vector<std::shared_ptr<Value>>&,
                                             Environment&);
 
         virtual ~NativeFunction();
     };
 
-    class Expression {
+    class Expression : public AstNode {
+    protected:
+        Expression(const yy::location& loc) : AstNode(loc) {}
+
     public:
         virtual std::shared_ptr<Value> evaluate(Environment& environment) = 0;
         virtual ~Expression() {}
@@ -219,7 +261,9 @@ namespace fiffiscript {
         std::shared_ptr<Value> value;
 
     public:
-        Constant(std::shared_ptr<Value> value) : value(value) {}
+        Constant(const yy::location& loc, std::shared_ptr<Value> value)
+            : Expression(loc), value(value)
+        {}
 
         virtual std::shared_ptr<Value> evaluate(Environment& environment) {
             return value;
@@ -229,7 +273,10 @@ namespace fiffiscript {
     class Variable : public Expression {
         std::string name;
     public:
-        Variable(const std::string& name) : name(name) {}
+        Variable(const yy::location& loc, const std::string& name)
+            : Expression(loc), name(name)
+        {}
+
         virtual std::shared_ptr<Value> evaluate(Environment& environment);
     };
 
@@ -237,24 +284,29 @@ namespace fiffiscript {
         std::shared_ptr<Expression> function;
         std::vector<std::shared_ptr<Expression>> arguments;
     public:
-        FunctionCall(std::shared_ptr<Expression> function,
+        FunctionCall(const yy::location& loc,
+                     std::shared_ptr<Expression> function,
                      const std::vector<std::shared_ptr<Expression>>& arguments)
-            : function(function), arguments(arguments)
+            : Expression(loc), function(function), arguments(arguments)
         {}
 
         virtual std::shared_ptr<Value> evaluate(Environment& environment);
     };
 
     class RegularFunction : public Function {
+        std::string name;
         std::vector<std::string> parameters;
         std::vector<std::shared_ptr<Expression>> body;
     public:
-        RegularFunction(const std::vector<std::string>& parameters,
+        RegularFunction(const yy::location& loc,
+                        const std::string& name,
+                        const std::vector<std::string>& parameters,
                         const std::vector<std::shared_ptr<Expression>>& body)
-            : parameters(parameters), body(body)
+            : Function(loc), name(name), parameters(parameters), body(body)
         {}
 
-        virtual std::shared_ptr<Value> call(const std::vector<std::shared_ptr<Value>>&,
+        virtual std::shared_ptr<Value> call(const yy::location&,
+                                            const std::vector<std::shared_ptr<Value>>&,
                                             Environment&);
     };
 
@@ -263,12 +315,12 @@ namespace fiffiscript {
         std::shared_ptr<Expression> body;
     };
 
-    class Program {
+    class Program : public AstNode {
         std::vector<Definition> definitions;
     public:
-        void add_definition(const std::string name, std::shared_ptr<Expression> value) {
-            definitions.push_back({name, std::move(value)});
-        }
+        Program(const yy::location& loc, const std::vector<Definition>& definitions)
+            : AstNode(loc), definitions(definitions)
+        {}
 
         void run();
     };

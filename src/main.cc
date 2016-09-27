@@ -8,12 +8,12 @@ int main(int argc, char** argv) {
     } else {
         tokenizer::init_file(argv[1]);
     }
-    fiffiscript::Program program;
+    std::unique_ptr<fiffiscript::Program> program;
     yy::parser parser(program);
     parser.parse();
     if(argc >= 2) {
         tokenizer::close_file();
     }
-    program.run();
+    program->run();
     return 0;
 }

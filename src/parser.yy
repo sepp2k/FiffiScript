@@ -23,7 +23,7 @@
 YY_DECL;
 }
 
-%parse-param { fiffiscript::Program& program }
+%parse-param { std::unique_ptr<fiffiscript::Program>& program }
 
 %token  <long long>     INT_LITERAL
 %token  <double>        FLOAT_LITERAL
@@ -41,26 +41,40 @@ YY_DECL;
 %type   <fiffiscript::NativeFunction::Type> type
 %type   <std::vector<fiffiscript::NativeFunction::Type>> type_list type_list1
 %type   <std::string> library_opt
+%type   <std::vector<fiffiscript::Definition>> definitions
+%type   <fiffiscript::Definition> definition
 %%
 
 program:
-                // nothing
-        |       program definition
+    definitions {
+        program = std::make_unique<fiffiscript::Program>(@$, $1);
+    }
+;
+
+definitions:
+    {} |
+    definitions definition {
+        $$ = std::move($1);
+        $$.push_back($2);
+    }
 ;
 
 definition:
     DEF IDENTIFIER LEFT_PAREN param_list RIGHT_PAREN LEFT_BRACE body RIGHT_BRACE {
-        auto f = std::make_shared<fiffiscript::RegularFunction>($2, $4, $7);
-        auto exp = std::make_shared<fiffiscript::Constant>(f);
-        program.add_definition($2, exp);
+        auto f = std::make_shared<fiffiscript::RegularFunction>(@$, $2, $4, $7);
+        auto exp = std::make_shared<fiffiscript::Constant>(@$, f);
+        $$.name = $2;
+        $$.body = exp;
     } |
     DEF NATIVE library_opt type IDENTIFIER LEFT_PAREN type_list RIGHT_PAREN {
-        auto f = std::make_shared<fiffiscript::NativeFunction>($3, $5, $4, $7);
-        auto exp = std::make_shared<fiffiscript::Constant>(f);
-        program.add_definition($5, exp);
+        auto f = std::make_shared<fiffiscript::NativeFunction>(@$, $3, $5, $4, $7);
+        auto exp = std::make_shared<fiffiscript::Constant>(@$, f);
+        $$.name = $5;
+        $$.body = exp;
     } |
     DEF IDENTIFIER EQUALS expression {
-        program.add_definition($2, $4);
+        $$.name = $2;
+        $$.body = $4;
     }
 ;
 
@@ -119,25 +133,25 @@ type_list1:
 expression:
     primary_expression { $$ = $1; } |
     primary_expression LEFT_PAREN expression_list RIGHT_PAREN {
-        $$ = std::make_shared<fiffiscript::FunctionCall>($1, $3);
+        $$ = std::make_shared<fiffiscript::FunctionCall>(@$, $1, $3);
     }
 ;
 
 primary_expression:
     INT_LITERAL {
         auto val = std::make_shared<fiffiscript::IntValue>($1);
-        $$ = std::make_shared<fiffiscript::Constant>(val);
+        $$ = std::make_shared<fiffiscript::Constant>(@$, val);
     } |
     FLOAT_LITERAL {
         auto val = std::make_shared<fiffiscript::FloatValue>($1);
-        $$ = std::make_shared<fiffiscript::Constant>(val);
+        $$ = std::make_shared<fiffiscript::Constant>(@$, val);
     } |
     STRING_LITERAL {
         auto val = std::make_shared<fiffiscript::StringValue>($1);
-        $$ = std::make_shared<fiffiscript::Constant>(val);
+        $$ = std::make_shared<fiffiscript::Constant>(@$, val);
     } |
     IDENTIFIER {
-        $$ = std::make_shared<fiffiscript::Variable>($1);
+        $$ = std::make_shared<fiffiscript::Variable>(@$, $1);
     } |
     LEFT_PAREN expression RIGHT_PAREN {
         $$ = $2;

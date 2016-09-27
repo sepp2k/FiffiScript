@@ -33,16 +33,18 @@ namespace fiffiscript {
     // ffi_types directly.
     const NativeFunction::Type NativeFunction::string_type = &ffi_type_pointer;
 
-    NativeFunction::NativeFunction(const std::string& library,
+    NativeFunction::NativeFunction(const yy::location& loc,
+                                   const std::string& library,
                                    const std::string& name,
                                    Type return_type,
                                    std::vector<Type>& argument_types)
-        : library(library), name(name), return_type(return_type), argument_types(argument_types)
+        : Function(loc), library(library), name(name), return_type(return_type),
+          argument_types(argument_types)
     {
         if(library.size() == 0) library_handle = dlopen(nullptr, RTLD_LAZY);
         else library_handle = dlopen(library.c_str(), RTLD_LAZY);
         if(library_handle == nullptr) {
-            util::error("Error opening library ", library);
+            error("Error opening library ", library);
         }
         function_handle = dlsym(library_handle, name.c_str());
         if(ffi_prep_cif(&cif,
@@ -51,7 +53,7 @@ namespace fiffiscript {
                         return_type,
                         this->argument_types.data()
                        ) != FFI_OK) {
-            util::error("Error while initializing FFI for the declaration of ", name);
+            error("Error while initializing FFI for the declaration of ", name);
         }
     }
 
@@ -96,39 +98,45 @@ namespace fiffiscript {
         }
     }
 
-    [[noreturn]] void wrong_number_of_arguments(const std::string& name, int expected, int actual) {
-        util::error("Wrong number of arguments to ", name,
-                    ";  expected: ", expected,
+    [[noreturn]] void wrong_number_of_arguments(const yy::location& loc,
+                                                const std::string& name,
+                                                int expected,
+                                                int actual) {
+        util::error(loc,
+                    "Wrong number of arguments to ", name,
+                    "; expected: ", expected,
                     ", but got: ", actual);
     }
 
-    std::shared_ptr<Value> NativeFunction::call(const std::vector<std::shared_ptr<Value>>& arguments,
+    std::shared_ptr<Value> NativeFunction::call(const yy::location& callLoc,
+                                                const std::vector<std::shared_ptr<Value>>& arguments,
                                                 Environment&) {
         if(arguments.size() != argument_types.size()) {
-            wrong_number_of_arguments(name, argument_types.size(), arguments.size());
+            wrong_number_of_arguments(callLoc, name, argument_types.size(), arguments.size());
         }
         void** cargs = new void*[arguments.size()];
         for(size_t i = 0; i < arguments.size(); i++) {
             if(argument_types[i] == short_type) {
-                cargs[i] = new short(arguments[i]->to_short());
+                cargs[i] = new short(arguments[i]->to_short(callLoc));
             } else if(argument_types[i] == int_type) {
-                cargs[i] = new int(arguments[i]->to_int());
+                cargs[i] = new int(arguments[i]->to_int(callLoc));
             } else if(argument_types[i] == long_type) {
-                cargs[i] = new long(arguments[i]->to_long());
+                cargs[i] = new long(arguments[i]->to_long(callLoc));
             } else if(argument_types[i] == long_long_type) {
-                cargs[i] = new long long(arguments[i]->to_long_long());
+                cargs[i] = new long long(arguments[i]->to_long_long(callLoc));
             } else if(argument_types[i] == float_type) {
-                cargs[i] = new float(arguments[i]->to_float());
+                cargs[i] = new float(arguments[i]->to_float(callLoc));
             } else if(argument_types[i] == double_type) {
-                cargs[i] = new double(arguments[i]->to_double());
+                cargs[i] = new double(arguments[i]->to_double(callLoc));
             } else if(argument_types[i] == string_type) {
-                std::string str = arguments[i]->to_string();
+                std::string str = arguments[i]->to_string(callLoc);
                 char** cstr = new char*;
                 *cstr = new char[str.size() + 1];
                 std::strcpy(*cstr, str.c_str());
                 cargs[i] = cstr;
             } else {
-                util::error("Unsupported argument type in declaration of native function, ", name);
+                util::error(callLoc,
+                            "Unsupported argument type in declaration of native function, ", name);
             }
         }
 
@@ -153,7 +161,7 @@ namespace fiffiscript {
         } else if(return_type == string_type) {
             result = call_function<char*>(&cif, function_handle, cargs);
         } else {
-            util::error("Unsupported return type in declaration of native function, ", name);
+            error("Unsupported return type in declaration of native function ", name);
         }
 
         for(size_t i = 0; i < arguments.size(); i++) {
@@ -187,7 +195,7 @@ namespace fiffiscript {
         if(environment[name]) {
             return environment[name];
         } else {
-            util::error("Undefined function or variable: ", name);
+            error("Undefined function or variable: ", name);
         }
     }
 
@@ -197,13 +205,14 @@ namespace fiffiscript {
         for(size_t i=0; i < arguments.size(); i++) {
             argument_values[i] = arguments[i]->evaluate(environment);
         }
-        return function_value->call(argument_values, environment);
+        return function_value->call(loc, argument_values, environment);
     }
 
-    std::shared_ptr<Value> RegularFunction::call(const std::vector<std::shared_ptr<Value>>& arguments,
+    std::shared_ptr<Value> RegularFunction::call(const yy::location& callLoc,
+                                                 const std::vector<std::shared_ptr<Value>>& arguments,
                                                  Environment& environment) {
         if(arguments.size() != parameters.size()) {
-            wrong_number_of_arguments(name, parameters.size(), arguments.size());
+            wrong_number_of_arguments(callLoc, name, parameters.size(), arguments.size());
         }
         environment.push_scope();
         for(size_t i = 0; i < arguments.size(); i++) {
@@ -232,9 +241,9 @@ namespace fiffiscript {
         }
         if(environment["main"]) {
             std::vector<std::shared_ptr<fiffiscript::Value>> no_arguments;
-            environment["main"]->call(no_arguments, environment);
+            environment["main"]->call(loc, no_arguments, environment);
         } else {
-            util::error("Function main() not found");
+            error("Function main() not found");
         }
     }
 }

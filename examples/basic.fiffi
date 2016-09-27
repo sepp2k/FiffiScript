@@ -3,16 +3,16 @@ def native int puts(string)
 def native double sqrt(double)
 
 def puts2(s1, s2) {
-  puts(s1)
-  puts(s2)
+  puts(s1);
+  puts(s2);
 }
 
 def nop() {}
 
 def main() {
-  puts(42)
-  puts2("Hello", "World")
-  puts(23.0)
-  puts2("The square root of 13 is:", sqrt(13))
-  nop()
+  puts(42);
+  puts2("Hello", "World");
+  puts(23.0);
+  puts2("The square root of 13 is:", sqrt(13));
+  nop();
 }

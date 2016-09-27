@@ -30,7 +30,7 @@ YY_DECL;
 %token  <std::string>   STRING_LITERAL
 %token  <std::string>   IDENTIFIER
 %token                  DEF NATIVE LEFT_PAREN RIGHT_PAREN LEFT_BRACE RIGHT_BRACE EQUALS
-%token                  COMMA INT LONG SHORT FLOAT DOUBLE STRING VOID
+%token                  COMMA SEMI INT LONG SHORT FLOAT DOUBLE STRING VOID
 %token                  EOF 0
 
 %start program
@@ -94,7 +94,7 @@ param_list1:
 
 body:
     {} |
-    body expression {
+    body expression SEMI {
         $$ = std::move($1);
         $$.push_back($2);
     }
@@ -132,7 +132,7 @@ type_list1:
 
 expression:
     primary_expression { $$ = $1; } |
-    primary_expression LEFT_PAREN expression_list RIGHT_PAREN {
+    expression LEFT_PAREN expression_list RIGHT_PAREN {
         $$ = std::make_shared<fiffiscript::FunctionCall>(@$, $1, $3);
     }
 ;

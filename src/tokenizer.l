@@ -27,6 +27,7 @@ static yy::location loc;
 "}"        return yy::parser::make_RIGHT_BRACE(loc);
 "="        return yy::parser::make_EQUALS(loc);
 ","        return yy::parser::make_COMMA(loc);
+";"        return yy::parser::make_SEMI(loc);
 "def"      return yy::parser::make_DEF(loc);
 "native"   return yy::parser::make_NATIVE(loc);
 "short"    return yy::parser::make_SHORT(loc);

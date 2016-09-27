@@ -46,7 +46,8 @@ Since there is no `void` type in FiffiScript itself, calling a `void` native
 function will return the integer value `0` instead.
 
 You can also define FiffiScript functions. A FiffiScript function has a
-number of typeless parameters and a body, which is a sequence of expressions.
+number of typeless parameters and a body, which is a sequence of
+semicolon-terminated expressions.
 The return value of a function is the value of the last expression in the
 function body. If the body is empty, the return value is `0`.
 

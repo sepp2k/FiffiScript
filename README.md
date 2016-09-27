@@ -10,9 +10,8 @@ functions in a programming language interpreter.
 
 This project was quickly thrown together to demonstrate how to use dlopen and
 libffi to create a working FFI in an interpreter. It should not be considered
-an example of good practices in interpreter design (for example it has horrible
-error reporting, does not keep track of location information, executes the code
-using a simple AST traversal, does not include "advanced" features like
+an example of good practices in interpreter design (for example it executes
+the code using a simple AST traversal, does not include "advanced" features like
 arithmetic or loops, is under-documented and under-tested and is generally just
 the result of trying to get something to work quickly).
 

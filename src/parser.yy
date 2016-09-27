@@ -47,128 +47,135 @@ YY_DECL;
 
 program:
     definitions {
-        program = std::make_unique<fiffiscript::Program>(@$, $1);
+        program = std::make_unique<fiffiscript::Program>(@program, $definitions);
     }
 ;
 
-definitions:
+definitions[result]:
     {} |
-    definitions definition {
-        $$ = std::move($1);
-        $$.push_back($2);
+    definitions[previous] definition {
+        $result = std::move($previous);
+        $result.push_back($definition);
     }
 ;
 
 definition:
     DEF IDENTIFIER LEFT_PAREN param_list RIGHT_PAREN LEFT_BRACE body RIGHT_BRACE {
-        auto f = std::make_shared<fiffiscript::RegularFunction>(@$, $2, $4, $7);
-        auto exp = std::make_shared<fiffiscript::Constant>(@$, f);
-        $$.name = $2;
-        $$.body = exp;
+        auto f = std::make_shared<fiffiscript::RegularFunction>(@definition,
+                                                                $IDENTIFIER,
+                                                                $param_list,
+                                                                $body);
+        auto exp = std::make_shared<fiffiscript::Constant>(@definition, f);
+        $definition.name = $2;
+        $definition.body = exp;
     } |
     DEF NATIVE library_opt type IDENTIFIER LEFT_PAREN type_list RIGHT_PAREN {
-        auto f = std::make_shared<fiffiscript::NativeFunction>(@$, $3, $5, $4, $7);
-        auto exp = std::make_shared<fiffiscript::Constant>(@$, f);
-        $$.name = $5;
-        $$.body = exp;
+        auto f = std::make_shared<fiffiscript::NativeFunction>(@definition,
+                                                               $library_opt,
+                                                               $IDENTIFIER,
+                                                               $type,
+                                                               $type_list);
+        auto exp = std::make_shared<fiffiscript::Constant>(@definition, f);
+        $definition.name = $IDENTIFIER;
+        $definition.body = exp;
     } |
     DEF IDENTIFIER EQUALS expression {
-        $$.name = $2;
-        $$.body = $4;
+        $definition.name = $IDENTIFIER;
+        $definition.body = $expression;
     }
 ;
 
 param_list:
     {} |
-    param_list1 { $$ = std::move($1); }
+    param_list1 { $param_list = std::move($param_list1); }
 
-param_list1:
+param_list1[result]:
     IDENTIFIER {
-        $$.push_back($1);
+        $result.push_back($IDENTIFIER);
     } |
-    param_list1 COMMA IDENTIFIER {
-        $$ = std::move($1);
-        $$.push_back($3);
+    param_list1[previous] COMMA IDENTIFIER {
+        $result = std::move($previous);
+        $result.push_back($IDENTIFIER);
     }
 ;
 
-body:
+body[result]:
     {} |
-    body expression SEMI {
-        $$ = std::move($1);
-        $$.push_back($2);
+    body[previous] expression SEMI {
+        $result = std::move($previous);
+        $result.push_back($expression);
     }
 ;
 
 library_opt:
-    { $$ = ""; } |
-    LEFT_PAREN STRING_LITERAL RIGHT_PAREN  { $$ = std::move($2); }
+    { $library_opt = ""; } |
+    LEFT_PAREN STRING_LITERAL RIGHT_PAREN  { $library_opt = std::move($STRING_LITERAL); }
 ;
 
 type:
-    SHORT { $$ = fiffiscript::NativeFunction::short_type; } |
-    INT { $$ = fiffiscript::NativeFunction::int_type; } |
-    LONG { $$ = fiffiscript::NativeFunction::long_type; } |
-    LONG LONG { $$ = fiffiscript::NativeFunction::long_long_type; } |
-    FLOAT { $$ = fiffiscript::NativeFunction::float_type; } |
-    DOUBLE { $$ = fiffiscript::NativeFunction::double_type; } |
-    STRING { $$ = fiffiscript::NativeFunction::string_type; } |
-    VOID { $$ = fiffiscript::NativeFunction::void_type; }
+    SHORT { $type = fiffiscript::NativeFunction::short_type; } |
+    INT { $type = fiffiscript::NativeFunction::int_type; } |
+    LONG { $type = fiffiscript::NativeFunction::long_type; } |
+    LONG LONG { $type = fiffiscript::NativeFunction::long_long_type; } |
+    FLOAT { $type = fiffiscript::NativeFunction::float_type; } |
+    DOUBLE { $type = fiffiscript::NativeFunction::double_type; } |
+    STRING { $type = fiffiscript::NativeFunction::string_type; } |
+    VOID { $type = fiffiscript::NativeFunction::void_type; }
 ;
 
 type_list:
     {} |
-    type_list1 { $$ = std::move($1); }
+    type_list1 { $type_list = std::move($type_list1); }
 
-type_list1:
+type_list1[result]:
     type {
-        $$.push_back($1);
+        $result.push_back($type);
     } |
-    type_list1 COMMA type {
-        $$ = std::move($1);
-        $$.push_back($3);
+    type_list1[previous] COMMA type {
+        $result = std::move($previous);
+        $result.push_back($type);
     }
 ;
 
-expression:
-    primary_expression { $$ = $1; } |
-    expression LEFT_PAREN expression_list RIGHT_PAREN {
-        $$ = std::make_shared<fiffiscript::FunctionCall>(@$, $1, $3);
+expression[result]:
+    primary_expression { $result = $primary_expression; } |
+    expression[f] LEFT_PAREN expression_list[args] RIGHT_PAREN {
+        $result = std::make_shared<fiffiscript::FunctionCall>(@result, $f, $args);
     }
 ;
 
-primary_expression:
+primary_expression[result]:
     INT_LITERAL {
-        auto val = std::make_shared<fiffiscript::IntValue>($1);
-        $$ = std::make_shared<fiffiscript::Constant>(@$, val);
+        auto val = std::make_shared<fiffiscript::IntValue>($INT_LITERAL);
+        $result = std::make_shared<fiffiscript::Constant>(@result, val);
     } |
     FLOAT_LITERAL {
-        auto val = std::make_shared<fiffiscript::FloatValue>($1);
-        $$ = std::make_shared<fiffiscript::Constant>(@$, val);
+        auto val = std::make_shared<fiffiscript::FloatValue>($FLOAT_LITERAL);
+        $result = std::make_shared<fiffiscript::Constant>(@result, val);
     } |
     STRING_LITERAL {
-        auto val = std::make_shared<fiffiscript::StringValue>($1);
-        $$ = std::make_shared<fiffiscript::Constant>(@$, val);
+        auto val = std::make_shared<fiffiscript::StringValue>($STRING_LITERAL);
+        $result = std::make_shared<fiffiscript::Constant>(@result, val);
     } |
     IDENTIFIER {
-        $$ = std::make_shared<fiffiscript::Variable>(@$, $1);
+        $result = std::make_shared<fiffiscript::Variable>(@result, $IDENTIFIER);
     } |
     LEFT_PAREN expression RIGHT_PAREN {
-        $$ = $2;
+        $result = $expression;
     }
 ;
 
 expression_list:
     {} |
-    expression_list1 { $$ = std::move($1); }
+    expression_list1 { $expression_list = std::move($expression_list1); }
 
-expression_list1:
+expression_list1[result]:
     expression {
-        $$.push_back($1);
+        $result.push_back($expression);
     } |
-    expression_list1 COMMA expression {
-        $$ = std::move($1);
-        $$.push_back($3);
+    expression_list1[previous] COMMA expression {
+        $result = std::move($previous);
+        $result.push_back($expression);
     }
 ;
 
